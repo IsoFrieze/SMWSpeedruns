@@ -204,22 +204,27 @@ public class SMWSpeedruns {
 				// add to pending queue if we haven't seen it yet
 				if (!pending.contains(runId) && !done.contains(runId)) {
 					count++;
-
-					// check and see if this is the runner's pb, if not don't keep this run
-					// only works for solo runs, and for runs with players with SRC accounts
-					boolean pb;
-					String player1Type = run.getJSONArray("players").getJSONObject(0).getString("rel");
-					if (player1Type.equals("user")) {
-						String player1Id = run.getJSONArray("players").getJSONObject(0).getString("id");
-						pb = isAPersonalBest(runId, player1Id);
-					} else {
-						pb = true;
-					}
 					
-					if (pb && pend) { // on boot, dump everything into done queue first
-						pending.add(runId);
-					} else {
+					if (!pend) {
+						// on boot, dump everything into done queue first
 						done.add(runId);
+					} else {
+						// check and see if this is the runner's pb, if not don't keep this run
+						// only works for solo runs, and for runs with players with SRC accounts
+						boolean pb;
+						String player1Type = run.getJSONArray("players").getJSONObject(0).getString("rel");
+						if (player1Type.equals("user")) {
+							String player1Id = run.getJSONArray("players").getJSONObject(0).getString("id");
+							pb = isAPersonalBest(runId, player1Id);
+						} else {
+							pb = true;
+						}
+						
+						if (pb) {
+							pending.add(runId);
+						} else {
+							done.add(runId);
+						}
 					}
 				}
 			}
