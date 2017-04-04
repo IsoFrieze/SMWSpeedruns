@@ -64,33 +64,34 @@ public class SMWSpeedruns {
 		racers = new HashMap<>();
 		random = new Random();
 		sdf = new SimpleDateFormat("MMM dd, yyyy - HH:mm:ss");
-		
-		// initialize twitter
-		initTwitter();
 
 		Util.log("++-- SMW Speedruns Bot --++");
-		Util.log("|| Version 1.2           ||");
+		Util.log("|| Version 1.2.1         ||");
 		Util.log("|| By @Dotsarecool       ||");
 		Util.log("++-----------------------++");
 		Util.log("");
-
-		// populate done queues with currently verified runs
-		checkForRuns(false, GAME_SMW);
-		checkForRuns(false, GAME_SMWEXT);
 		
-		// main loop
-		while (true) {
-			// check for verified runs every once in a while
-			for (int j = 0; j < CHECK_FOR_RUNS_FREQUENCY; j++) {
-				Util.waitTime(1000 * SECONDS_BETWEEN_TWEETS / CHECK_FOR_RUNS_FREQUENCY / 2);
-				checkForRuns(true, GAME_SMW);
-				Util.waitTime(1000 * SECONDS_BETWEEN_TWEETS / CHECK_FOR_RUNS_FREQUENCY / 2);
-				checkForRuns(true, GAME_SMWEXT);
-			}
+
+		// initialize twitter, populate done queues with currently verified runs
+		// if any of these fail, exit the program because it won't run properly
+		if (initTwitter() && checkForRuns(false, GAME_SMW) && checkForRuns(false, GAME_SMWEXT)) {
 			
-			// try to make a tweet
-			announceOne();
+			// main loop
+			while (true) {
+				// check for verified runs every once in a while
+				for (int j = 0; j < CHECK_FOR_RUNS_FREQUENCY; j++) {
+					Util.waitTime(1000 * SECONDS_BETWEEN_TWEETS / CHECK_FOR_RUNS_FREQUENCY / 2);
+					checkForRuns(true, GAME_SMW);
+					Util.waitTime(1000 * SECONDS_BETWEEN_TWEETS / CHECK_FOR_RUNS_FREQUENCY / 2);
+					checkForRuns(true, GAME_SMWEXT);
+				}
+				
+				// try to make a tweet
+				announceOne();
+			}
 		}
+		
+		Util.log("The program has exited. Check your internet connection.");
 	}
 	
 	// initialize all the twitter4j stuff
