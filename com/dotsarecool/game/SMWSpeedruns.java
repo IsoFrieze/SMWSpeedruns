@@ -1,6 +1,19 @@
 package com.dotsarecool.game;
 
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.Graphics2D;
+import java.awt.MenuItem;
+import java.awt.PopupMenu;
+import java.awt.SystemTray;
+import java.awt.TrayIcon;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -8,6 +21,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+
+import javax.swing.ImageIcon;
 
 import org.apache.commons.io.IOUtils;
 import org.json.JSONArray;
@@ -21,6 +36,9 @@ import twitter4j.conf.ConfigurationBuilder;
 public class SMWSpeedruns {
 	// where to save the log file
 	public static String LOG_FILE = "out.log";
+	
+	// whether to show detailed notes in the log file
+	public static boolean details = false;
 	
 	// api strings
 	public static String
@@ -47,6 +65,9 @@ public class SMWSpeedruns {
 	// the frequency newly verified runs are checked
 	public static int CHECK_FOR_RUNS_FREQUENCY = 5;
 	
+	// the maximum age of a run to still be announced
+	public static int RUN_MAX_AGE_SECONDS = 4 * 7 * 24 * 60 * 60;
+	
 	// other global containers/objects
 	public static List<String> pending, done, races;
 	public static Map<String,String> users, categories, racers;
@@ -54,28 +75,21 @@ public class SMWSpeedruns {
 	public static Random random;
 	public static SimpleDateFormat sdf;
 	
+	// the system tray icon object
+	final public static TrayIcon ti = new TrayIcon(new ImageIcon("img/icon.png").getImage());
+	
 	public static void main(String[] args) {
-		// initialize objects
-		pending = new ArrayList<>();
-		done = new ArrayList<>();
-		races = new ArrayList<>();
-		users = new HashMap<>();
-		categories = new HashMap<>();
-		racers = new HashMap<>();
-		random = new Random();
-		sdf = new SimpleDateFormat("MMM dd, yyyy - HH:mm:ss");
-
-		Util.log("++-- SMW Speedruns Bot --++");
-		Util.log("|| Version 1.2.1         ||");
-		Util.log("|| By @Dotsarecool       ||");
-		Util.log("++-----------------------++");
-		Util.log("");
+		for (String s : args) {
+			if (s.equals("-d")) {
+				details = true;
+			} else {
+				try (PrintWriter out = new PrintWriter(new FileWriter(new File(s), true))) {
+					LOG_FILE = s;
+				} catch (Exception e) { }
+			}			
+		}
 		
-
-		// initialize twitter, populate done queues with currently verified runs
-		// if any of these fail, exit the program because it won't run properly
-		if (initTwitter() && checkForRuns(false, GAME_SMW) && checkForRuns(false, GAME_SMWEXT)) {
-			
+		if (init() && start()) {
 			// main loop
 			while (true) {
 				// check for verified runs every once in a while
@@ -91,7 +105,24 @@ public class SMWSpeedruns {
 			}
 		}
 		
-		Util.log("The program has exited. Check your internet connection.");
+		Util.log(false, "The program has exited. Check your internet connection.");
+	}
+	
+	// initialize everything. return false if something goes wrong.
+	public static boolean init() {
+		// initialize objects
+		pending = new ArrayList<>();
+		done = new ArrayList<>();
+		races = new ArrayList<>();
+		users = new HashMap<>();
+		categories = new HashMap<>();
+		racers = new HashMap<>();
+		random = new Random();
+		sdf = new SimpleDateFormat("MMM dd, yyyy - HH:mm:ss");
+
+		// initialize twitter, populate done queues with currently verified runs
+		// if any of these fail, exit the program because it won't run properly
+		return initTwitter();
 	}
 	
 	// initialize all the twitter4j stuff
@@ -107,6 +138,41 @@ public class SMWSpeedruns {
 		return true;
 	}
 	
+	// everything has been initialized and we are guaranteed to actually start the program
+	public static boolean start() {
+		Util.log(false, "++-- SMW Speedruns Bot --++");
+		Util.log(false, "|| Version 1.3.0         ||");
+		Util.log(false, "|| By @Dotsarecool       ||");
+		Util.log(false, "++-----------------------++");
+		Util.log(false, String.format("Logging to '%s'.", LOG_FILE));
+		Util.log(false, "");
+		
+		// create a fancy system tray icon with exit option
+		try {
+			final SystemTray tray = SystemTray.getSystemTray();
+			final PopupMenu pop = new PopupMenu();
+			final MenuItem ex = new MenuItem("Exit");
+			ex.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					Util.log(false, "Exited.");
+					tray.remove(ti);
+					System.exit(0);
+				}
+			});
+			ti.setToolTip("SMWSpeedruns");
+			pop.add(ex);
+			ti.setPopupMenu(pop);
+			tray.add(ti);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+		checkForRuns(false, GAME_SMW);
+		checkForRuns(false, GAME_SMWEXT);
+		
+		return true;
+	}
+	
 	// call the api url and convert it all to a string
 	public static String apiCall(String url) throws IOException {
 		API_CALLS++;
@@ -115,12 +181,13 @@ public class SMWSpeedruns {
 	
 	// actually tweet out the string s to the twitter
 	public static Status tweet(String s) throws Exception {
+		Status status = null;
 		//// THIS IS THE LINE THAT ACTUALLY MAKES THE TWEET
-		Status status = twitter.updateStatus(s);
+		status = twitter.updateStatus(s);
 		//// THIS IS THE LINE THAT ACTUALLY MAKES THE TWEET
-		Util.log("-->");
-		Util.log(String.format("--> %s", s));
-		Util.log("-->");
+		Util.log(true, "-->");
+		Util.log(false, String.format("--> %s", s));
+		Util.log(true, "-->");
 		return status;
 	}
 	
@@ -161,7 +228,7 @@ public class SMWSpeedruns {
 			
 			// didn't find any :(
 			if (smwrace == null) {
-				Util.log("No SMW races ongoing at the moment.");
+				Util.log(true, "No SMW races ongoing at the moment.");
 				return false;
 			}
 			
@@ -172,13 +239,13 @@ public class SMWSpeedruns {
 			
 			// only tweet it out if there are 3+ racers, it is in progress, and we haven't tweeted it already
 			if (racerCount > 2 && raceStatus.equals("In Progress") && !races.contains(raceId)) {
-				Util.log(String.format("A SMW race was found: %s", raceId));
+				Util.log(true, String.format("A SMW race was found: %s", raceId));
 				String tweet = createRaceTweet(smwrace);
 				tweet(tweet);				
 				races.add(raceId);
 				return true;
 			} else {
-				Util.log("A SMW race was found, but it wasn't tweeted out.");
+				Util.log(true, "A SMW race was found, but it wasn't tweeted out.");
 				return false;
 			}
 		} catch (Exception e) {
@@ -189,7 +256,7 @@ public class SMWSpeedruns {
 	
 	// check the SRC api for any runs that were recently verified
 	public static boolean checkForRuns(boolean pend, String gameId) {
-		Util.log(String.format("Checking for %s verified runs...", pend ? "newly" : "already"));
+		Util.log(true, String.format("Checking for %s verified runs...", pend ? "newly" : "already"));
 		int count = 0;
 		try {
 			// call the SRC api (gives the last 20 recently verified runs)
@@ -220,8 +287,12 @@ public class SMWSpeedruns {
 						} else {
 							pb = true;
 						}
+						// check to see if this run is relatively new, if it is old don't announce it
+						String runDate = run.getString("date");
+						long secs = (System.currentTimeMillis() - new SimpleDateFormat("yyyy-MM-dd").parse(runDate).getTime()) / 1000;
+						boolean old = secs > RUN_MAX_AGE_SECONDS;
 						
-						if (pb) {
+						if (pb && !old) {
 							pending.add(runId);
 						} else {
 							done.add(runId);
@@ -230,7 +301,8 @@ public class SMWSpeedruns {
 				}
 			}
 			
-			Util.log(String.format("Found %d %s verified runs.", count, pend ? "newly" : "already"));
+			Util.log(true, String.format("Found %d %s verified runs.", count, pend ? "newly" : "already"));
+			updateTrayIcon();
 			return true;
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -285,7 +357,7 @@ public class SMWSpeedruns {
 		
 		// log who verified this run
 		String verifiedBy = run.getJSONObject("status").getString("examiner");
-		Util.log(String.format("Run verified by <%s>", getSRCPlayer(verifiedBy)));
+		Util.log(false, String.format("Run verified by <%s>", getSRCPlayer(verifiedBy)));
 		
 		// get some useful info
 		JSONArray players = run.getJSONArray("players");
@@ -423,5 +495,22 @@ public class SMWSpeedruns {
 			e.printStackTrace();
 			return null;
 		}
+	}
+	
+	// update the tray icon to show how many runs are currently pending
+	public static void updateTrayIcon() {
+		BufferedImage bi = new BufferedImage(16, 16, BufferedImage.TYPE_4BYTE_ABGR);
+		Graphics2D g = (Graphics2D)bi.getGraphics();
+		int runs = pending.size();
+
+		g.drawImage(new ImageIcon("img/icon.png").getImage(), runs > 0 ? 1 : 0, 0, null);
+		if (runs > 0) {
+			g.drawImage(new ImageIcon("img/bubble.png").getImage(), 0, 0, null);
+			g.setColor(new Color(200, 200, 255));
+			g.setFont(new Font("Consolas", Font.PLAIN, 9));
+			g.drawString(runs > 8 ? "+" : ("" + runs), 1, 7);
+		}
+		
+		ti.setImage(bi);
 	}
 }

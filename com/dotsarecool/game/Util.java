@@ -8,28 +8,31 @@ import java.util.Date;
 public class Util {	
 	// wait a bit. also log some stuff
 	public static void waitTime(long t) {
-		log(String.format("Currently at %d API calls.", SMWSpeedruns.API_CALLS));
-		log(String.format("pending: %d | done: %d | races: %d || users: %d | categories: %d | racers: %d",
+		log(true, String.format("Currently at %d API calls.", SMWSpeedruns.API_CALLS));
+		log(true, String.format("pending: %d | done: %d | races: %d || users: %d | categories: %d | racers: %d",
 				SMWSpeedruns.pending.size(), SMWSpeedruns.done.size(), SMWSpeedruns.races.size(),
 				SMWSpeedruns.users.size(), SMWSpeedruns.categories.size(), SMWSpeedruns.racers.size()));
 		//for (int i = 0; i < pending.size(); i++) {
 		//	log(String.format("     - %s", pending.get(i).toString()));
 		//}
-		log(String.format("Waiting %d seconds...", t/1000));
+		log(true, String.format("Waiting %d seconds...", t/1000));
 		//log("...");
 		try { Thread.sleep(t); } catch (Exception e) {}
 	}
 	
 	// output to the log file
-	public static boolean log(String s) {
-		try (PrintWriter out = new PrintWriter(new FileWriter(new File(SMWSpeedruns.LOG_FILE), true))) {
-			System.out.println(s);
-			out.printf("[%23s] %s%n", SMWSpeedruns.sdf.format(new Date()), s);
-			return true;
-		} catch (Exception e) {
-			e.printStackTrace();
-			return false;
+	public static boolean log(boolean detail, String s) {
+		System.out.println(s);
+		if (!(detail && !SMWSpeedruns.details)) {
+			try (PrintWriter out = new PrintWriter(new FileWriter(new File(SMWSpeedruns.LOG_FILE), true))) {
+				out.printf("[%23s] %s%n", SMWSpeedruns.sdf.format(new Date()), s);
+				return true;
+			} catch (Exception e) {
+				e.printStackTrace();
+				return false;
+			}
 		}
+		return true;
 	}
 	
 	// output a time in a human-readable format
