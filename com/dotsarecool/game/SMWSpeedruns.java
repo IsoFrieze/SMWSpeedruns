@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Random;
 
 import javax.swing.ImageIcon;
+import javax.swing.JOptionPane;
 
 import org.apache.commons.io.IOUtils;
 import org.json.JSONArray;
@@ -141,7 +142,7 @@ public class SMWSpeedruns {
 	// everything has been initialized and we are guaranteed to actually start the program
 	public static boolean start() {
 		Util.log(false, "++-- SMW Speedruns Bot --++");
-		Util.log(false, "|| Version 1.3.0         ||");
+		Util.log(false, "|| Version 1.3.1         ||");
 		Util.log(false, "|| By @Dotsarecool       ||");
 		Util.log(false, "++-----------------------++");
 		Util.log(false, String.format("Logging to '%s'.", LOG_FILE));
@@ -154,6 +155,13 @@ public class SMWSpeedruns {
 			final MenuItem ex = new MenuItem("Exit");
 			ex.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
+					if (pending.size() > 0) {
+						String msg = String.format("There are %s run(s) waiting to be Tweeted. Are you sure you want to exit?", pending.size());
+						int r = JOptionPane.showConfirmDialog(null, msg, "Exit", JOptionPane.OK_CANCEL_OPTION);
+						if (r != JOptionPane.YES_OPTION) {
+							return;
+						}
+					}
 					Util.log(false, "Exited.");
 					tray.remove(ti);
 					System.exit(0);
