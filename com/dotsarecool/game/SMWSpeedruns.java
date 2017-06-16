@@ -41,6 +41,9 @@ public class SMWSpeedruns {
 	// whether to show detailed notes in the log file
 	public static boolean details = false;
 	
+	// flag to interrupt the regular cycle and start over
+	public static boolean restart = false;
+	
 	// api strings
 	public static String
 		API_SRC_RECENTLY_VERIFIED = "http://www.speedrun.com/api/v1/runs?status=verified&orderby=verify-date&direction=desc&game=",
@@ -94,7 +97,7 @@ public class SMWSpeedruns {
 			// main loop
 			while (true) {
 				// check for verified runs every once in a while
-				for (int j = 0; j < CHECK_FOR_RUNS_FREQUENCY; j++) {
+				for (int j = 0; !restart && j < CHECK_FOR_RUNS_FREQUENCY; j++) {
 					Util.waitTime(1000 * SECONDS_BETWEEN_TWEETS / CHECK_FOR_RUNS_FREQUENCY / 2);
 					checkForRuns(true, GAME_SMW);
 					Util.waitTime(1000 * SECONDS_BETWEEN_TWEETS / CHECK_FOR_RUNS_FREQUENCY / 2);
@@ -102,7 +105,11 @@ public class SMWSpeedruns {
 				}
 				
 				// try to make a tweet
-				announceOne();
+				if (!restart) {
+					announceOne();
+				}
+				
+				restart = false;
 			}
 		}
 		
@@ -142,7 +149,7 @@ public class SMWSpeedruns {
 	// everything has been initialized and we are guaranteed to actually start the program
 	public static boolean start() {
 		Util.log(false, "++-- SMW Speedruns Bot --++");
-		Util.log(false, "|| Version 1.3.1         ||");
+		Util.log(false, "|| Version 1.3.2         ||");
 		Util.log(false, "|| By @Dotsarecool       ||");
 		Util.log(false, "++-----------------------++");
 		Util.log(false, String.format("Logging to '%s'.", LOG_FILE));
@@ -152,6 +159,13 @@ public class SMWSpeedruns {
 		try {
 			final SystemTray tray = SystemTray.getSystemTray();
 			final PopupMenu pop = new PopupMenu();
+			final MenuItem goNow = new MenuItem("Announce Next");
+			goNow.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					restart = true;
+					announceOne();
+				}
+			});
 			final MenuItem ex = new MenuItem("Exit");
 			ex.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
@@ -168,6 +182,7 @@ public class SMWSpeedruns {
 				}
 			});
 			ti.setToolTip("SMWSpeedruns");
+			pop.add(goNow);
 			pop.add(ex);
 			ti.setPopupMenu(pop);
 			tray.add(ti);
@@ -208,6 +223,7 @@ public class SMWSpeedruns {
 				tweet(tweet);		
 				pending.remove(0);
 				done.add(id);
+				updateTrayIcon();
 				return true;
 			} catch (Exception e) {
 				e.printStackTrace();
