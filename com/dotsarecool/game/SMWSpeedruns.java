@@ -46,10 +46,10 @@ public class SMWSpeedruns {
 	
 	// api strings
 	public static String
-		API_SRC_RECENTLY_VERIFIED = "http://www.speedrun.com/api/v1/runs?status=verified&orderby=verify-date&direction=desc&game=",
-		API_SRC_USER = "http://www.speedrun.com/api/v1/users/",
-		API_SRC_CATEGORY = "http://www.speedrun.com/api/v1/categories/",
-		API_SRC_RUN = "http://www.speedrun.com/api/v1/runs/",
+		API_SRC_RECENTLY_VERIFIED = "https://www.speedrun.com/api/v1/runs?status=verified&orderby=verify-date&direction=desc&game=",
+		API_SRC_USER = "https://www.speedrun.com/api/v1/users/",
+		API_SRC_CATEGORY = "https://www.speedrun.com/api/v1/categories/",
+		API_SRC_RUN = "https://www.speedrun.com/api/v1/runs/",
 		API_SRL_RACES = "https://api.speedrunslive.com/races",
 		API_SRL_PLAYER = "https://api.speedrunslive.com/players/";
 	
@@ -149,7 +149,7 @@ public class SMWSpeedruns {
 	// everything has been initialized and we are guaranteed to actually start the program
 	public static boolean start() {
 		Util.log(false, "++-- SMW Speedruns Bot --++");
-		Util.log(false, "|| Version 1.3.2         ||");
+		Util.log(false, "|| Version 1.3.3         ||");
 		Util.log(false, "|| By @Dotsarecool       ||");
 		Util.log(false, "++-----------------------++");
 		Util.log(false, String.format("Logging to '%s'.", LOG_FILE));
