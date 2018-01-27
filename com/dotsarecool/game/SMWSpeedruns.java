@@ -3,6 +3,7 @@ package com.dotsarecool.game;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
+import java.awt.Menu;
 import java.awt.MenuItem;
 import java.awt.PopupMenu;
 import java.awt.SystemTray;
@@ -79,8 +80,12 @@ public class SMWSpeedruns {
 	public static Random random;
 	public static SimpleDateFormat sdf;
 	
-	// the system tray icon object
+	// the system tray icon objects
 	final public static TrayIcon ti = new TrayIcon(new ImageIcon("img/icon.png").getImage());
+	final public static PopupMenu pop = new PopupMenu();
+	final public static MenuItem goNow = new MenuItem("Announce Next");
+	final public static MenuItem none = new MenuItem("No Runs in Queue");
+	final public static MenuItem ex = new MenuItem("Exit");
 	
 	public static void main(String[] args) {
 		for (String s : args) {
@@ -149,7 +154,7 @@ public class SMWSpeedruns {
 	// everything has been initialized and we are guaranteed to actually start the program
 	public static boolean start() {
 		Util.log(false, "++-- SMW Speedruns Bot --++");
-		Util.log(false, "|| Version 1.3.3         ||");
+		Util.log(false, "|| Version 1.4.0         ||");
 		Util.log(false, "|| By @Dotsarecool       ||");
 		Util.log(false, "++-----------------------++");
 		Util.log(false, String.format("Logging to '%s'.", LOG_FILE));
@@ -158,15 +163,12 @@ public class SMWSpeedruns {
 		// create a fancy system tray icon with exit option
 		try {
 			final SystemTray tray = SystemTray.getSystemTray();
-			final PopupMenu pop = new PopupMenu();
-			final MenuItem goNow = new MenuItem("Announce Next");
 			goNow.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
 					restart = true;
 					announceOne();
 				}
 			});
-			final MenuItem ex = new MenuItem("Exit");
 			ex.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
 					if (pending.size() > 0) {
@@ -182,6 +184,9 @@ public class SMWSpeedruns {
 				}
 			});
 			ti.setToolTip("SMWSpeedruns");
+			none.setEnabled(false);
+			pop.add(none);
+			pop.addSeparator();
 			pop.add(goNow);
 			pop.add(ex);
 			ti.setPopupMenu(pop);
@@ -220,9 +225,15 @@ public class SMWSpeedruns {
 			try {
 				String id = pending.get(0);
 				String tweet = createRunTweet(id);
-				tweet(tweet);		
+				tweet(tweet);
+				
 				pending.remove(0);
+				pop.remove(pop.getItemCount() - 4);
+				if (pop.getItemCount() == 3) {
+					pop.insert(none, 0);
+				}
 				done.add(id);
+				
 				updateTrayIcon();
 				return true;
 			} catch (Exception e) {
@@ -235,47 +246,48 @@ public class SMWSpeedruns {
 	
 	// check if there are any races ongoing, if so build a tweet for it
 	public static boolean announceARace() {
-		try {
-			// call the SRL api for list of races
-			String json = apiCall(API_SRL_RACES);
-			JSONObject o = new JSONObject(json);
-			JSONArray racelist = o.getJSONArray("races");
-			
-			// run through them all and look for smw or smwhacks races
-			JSONObject smwrace = null;
-			for (int i = 0; i < racelist.length(); i++) {
-				String gameAbbr = racelist.getJSONObject(i).getJSONObject("game").getString("abbrev");
-				if (gameAbbr.equals(RACE_SMW) || gameAbbr.equals(RACE_SMWHACKS)) {
-					smwrace = racelist.getJSONObject(i);
-				}
-			}
-			
-			// didn't find any :(
-			if (smwrace == null) {
-				Util.log(true, "No SMW races ongoing at the moment.");
-				return false;
-			}
-			
-			// get useful data from the api call
-			int racerCount = smwrace.getInt("numentrants");
-			String raceStatus = smwrace.getString("statetext");
-			String raceId = smwrace.getString("id");
-			
-			// only tweet it out if there are 3+ racers, it is in progress, and we haven't tweeted it already
-			if (racerCount > 2 && raceStatus.equals("In Progress") && !races.contains(raceId)) {
-				Util.log(true, String.format("A SMW race was found: %s", raceId));
-				String tweet = createRaceTweet(smwrace);
-				tweet(tweet);				
-				races.add(raceId);
-				return true;
-			} else {
-				Util.log(true, "A SMW race was found, but it wasn't tweeted out.");
-				return false;
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-			return false;
-		}
+		return false;
+//		try {
+//			// call the SRL api for list of races
+//			String json = apiCall(API_SRL_RACES);
+//			JSONObject o = new JSONObject(json);
+//			JSONArray racelist = o.getJSONArray("races");
+//			
+//			// run through them all and look for smw or smwhacks races
+//			JSONObject smwrace = null;
+//			for (int i = 0; i < racelist.length(); i++) {
+//				String gameAbbr = racelist.getJSONObject(i).getJSONObject("game").getString("abbrev");
+//				if (gameAbbr.equals(RACE_SMW) || gameAbbr.equals(RACE_SMWHACKS)) {
+//					smwrace = racelist.getJSONObject(i);
+//				}
+//			}
+//			
+//			// didn't find any :(
+//			if (smwrace == null) {
+//				Util.log(true, "No SMW races ongoing at the moment.");
+//				return false;
+//			}
+//			
+//			// get useful data from the api call
+//			int racerCount = smwrace.getInt("numentrants");
+//			String raceStatus = smwrace.getString("statetext");
+//			String raceId = smwrace.getString("id");
+//			
+//			// only tweet it out if there are 3+ racers, it is in progress, and we haven't tweeted it already
+//			if (racerCount > 2 && raceStatus.equals("In Progress") && !races.contains(raceId)) {
+//				Util.log(true, String.format("A SMW race was found: %s", raceId));
+//				String tweet = createRaceTweet(smwrace);
+//				tweet(tweet);				
+//				races.add(raceId);
+//				return true;
+//			} else {
+//				Util.log(true, "A SMW race was found, but it wasn't tweeted out.");
+//				return false;
+//			}
+//		} catch (Exception e) {
+//			e.printStackTrace();
+//			return false;
+//		}
 	}
 	
 	// check the SRC api for any runs that were recently verified
@@ -318,6 +330,11 @@ public class SMWSpeedruns {
 						
 						if (pb && !old) {
 							pending.add(runId);
+							if (pop.getItem(0) == none) {
+								pop.remove(0);
+							}
+							Menu runMenu = getRunMenu(run);
+							pop.insert(runMenu, 0);
 						} else {
 							done.add(runId);
 						}
@@ -332,6 +349,83 @@ public class SMWSpeedruns {
 			e.printStackTrace();
 			return false;
 		}
+	}
+	
+	// build a MenuItem for a run that includes options
+	public static Menu getRunMenu(JSONObject run) {
+		String runner;
+		String player1Type = run.getJSONArray("players").getJSONObject(0).getString("rel");
+		if (player1Type.equals("user")) {
+			runner = getSRCPlayer(run.getJSONArray("players").getJSONObject(0).getString("id"));
+		} else {
+			runner = run.getJSONArray("players").getJSONObject(0).getString("name");
+		}
+		String category = getSRCCategory(run.getString("category"));
+		
+		double runTime = run.getJSONObject("times").getDouble("realtime_t");
+		String time = Util.prettyTime(runTime, runTime);
+		
+		String title = String.format("%s in %s by %s", category, time, runner);
+		final Menu menu = new Menu(title);
+		
+		MenuItem prioritize = new MenuItem("Move to front of queue");
+		prioritize.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				int menuI = 0;
+				for (int i = 0; i < pop.getItemCount(); i++) {
+					if (pop.getItem(i) == menu) {
+						menuI = i;
+						break;
+					}
+				}
+				int queueI = pop.getItemCount()-3-menuI-1;
+				pop.remove(menuI);
+				pop.insert(menu, pop.getItemCount()-3);
+				String s = pending.remove(queueI);
+				pending.add(0, s);
+			}
+		});
+		MenuItem delay = new MenuItem("Move to end of queue");
+		delay.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				int menuI = 0;
+				for (int i = 0; i < pop.getItemCount(); i++) {
+					if (pop.getItem(i) == menu) {
+						menuI = i;
+						break;
+					}
+				}
+				int queueI = pop.getItemCount()-3-menuI-1;
+				pop.remove(menuI);
+				pop.insert(menu, 0);
+				String s = pending.remove(queueI);
+				pending.add(pending.size(), s);
+			}
+		});
+		MenuItem delete = new MenuItem("Delete");
+		delete.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				int menuI = 0;
+				for (int i = 0; i < pop.getItemCount(); i++) {
+					if (pop.getItem(i) == menu) {
+						menuI = i;
+						break;
+					}
+				}
+				int queueI = pop.getItemCount()-3-menuI-1;
+				pop.remove(menuI);
+				if (pop.getItemCount() == 3) {
+					pop.insert(none, 0);
+				}
+				pending.remove(queueI);
+			}
+		});
+		
+		menu.add(prioritize);
+		menu.add(delay);
+		menu.add(delete);
+		
+		return menu;
 	}
 	
 	// build a tweet for an SRL race
@@ -419,7 +513,7 @@ public class SMWSpeedruns {
 			.replace("%article%", article)
 			.replace("%time%", prettyTime);
 		
-		if (link == null || mainTweet.length() + link.length() + 1 > 140) {
+		if (link == null || mainTweet.length() + link.length() + 1 > 280) {
 			return mainTweet;
 		} else {
 			return String.format("%s %s", mainTweet, link);
