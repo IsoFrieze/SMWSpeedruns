@@ -74,10 +74,13 @@ public class SMWSpeedruns {
 	public static int SECONDS_BETWEEN_TWEETS = 30 * 60;
 	
 	// the frequency newly verified runs are checked
-	public static int CHECK_FOR_RUNS_FREQUENCY = 5;
+	public static int CHECK_FOR_RUNS_FREQUENCY = 4;
 	
 	// the maximum age of a run to still be announced
 	public static int RUN_MAX_AGE_SECONDS = 4 * 7 * 24 * 60 * 60;
+	
+	// max length of tweet
+	public static int MAX_TWEET_LENGTH = 280;
 	
 	// other global containers/objects
 	public static List<String> pending, done, races;
@@ -105,14 +108,16 @@ public class SMWSpeedruns {
 		}
 		
 		if (init() && start()) {
+			Util.waitTime(1000 * SECONDS_BETWEEN_TWEETS / CHECK_FOR_RUNS_FREQUENCY / 2);
+			
 			// main loop
 			while (true) {
 				// check for verified runs every once in a while
 				for (int j = 0; !restart && j < CHECK_FOR_RUNS_FREQUENCY; j++) {
-					Util.waitTime(1000 * SECONDS_BETWEEN_TWEETS / CHECK_FOR_RUNS_FREQUENCY / 2);
 					checkForRuns(true, GAME_SMW);
 					Util.waitTime(1000 * SECONDS_BETWEEN_TWEETS / CHECK_FOR_RUNS_FREQUENCY / 2);
 					checkForRuns(true, GAME_SMWEXT);
+					Util.waitTime(1000 * SECONDS_BETWEEN_TWEETS / CHECK_FOR_RUNS_FREQUENCY / 2);
 				}
 				
 				// try to make a tweet
@@ -160,7 +165,7 @@ public class SMWSpeedruns {
 	// everything has been initialized and we are guaranteed to actually start the program
 	public static boolean start() {
 		Util.log(false, "++-- SMW Speedruns Bot --++");
-		Util.log(false, "|| Version 1.5.0         ||");
+		Util.log(false, "|| Version 1.5.1         ||");
 		Util.log(false, "|| By @Dotsarecool       ||");
 		Util.log(false, "++-----------------------++");
 		Util.log(false, String.format("Logging to '%s'.", LOG_FILE));
@@ -487,7 +492,7 @@ public class SMWSpeedruns {
 			.replace("%racers%", names)
 			.replace("%goal%", goal);
 		
-		if (mainTweet.length() + link.length() + 1 > 140) {
+		if (mainTweet.length() + link.length() + 1 > MAX_TWEET_LENGTH) {
 			return mainTweet;
 		} else {
 			return String.format("%s %s", mainTweet, link);
@@ -541,7 +546,7 @@ public class SMWSpeedruns {
 			.replace("%article%", article)
 			.replace("%time%", prettyTime);
 		
-		if (link == null || mainTweet.length() + link.length() + 1 > 280) {
+		if (link == null || mainTweet.length() + link.length() + 1 > MAX_TWEET_LENGTH) {
 			return mainTweet;
 		} else {
 			return String.format("%s %s", mainTweet, link);
