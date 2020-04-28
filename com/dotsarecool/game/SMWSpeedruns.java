@@ -61,6 +61,12 @@ public class SMWSpeedruns {
 		RACE_SMW = "smw",
 		RACE_SMWHACKS = "smwhacks";
 	
+	// blacklisted categories
+	public static String[] BLACKLISTED_CATEGORIES = {
+		"9kvpep8k", // World 1
+		"wkpqvw8d", // 1 Yump
+	};
+	
 	// number of total api calls, used to make sure we're not calling too often
 	public static int API_CALLS = 0;
 	
@@ -154,7 +160,7 @@ public class SMWSpeedruns {
 	// everything has been initialized and we are guaranteed to actually start the program
 	public static boolean start() {
 		Util.log(false, "++-- SMW Speedruns Bot --++");
-		Util.log(false, "|| Version 1.4.0         ||");
+		Util.log(false, "|| Version 1.5.0         ||");
 		Util.log(false, "|| By @Dotsarecool       ||");
 		Util.log(false, "++-----------------------++");
 		Util.log(false, String.format("Logging to '%s'.", LOG_FILE));
@@ -221,27 +227,48 @@ public class SMWSpeedruns {
 	
 	// try to tweet something, races are prioritized
 	public static boolean announceOne() {
-		if (!announceARace() && pending.size() > 0) {
-			try {
-				String id = pending.get(0);
-				String tweet = createRunTweet(id);
-				tweet(tweet);
-				
-				pending.remove(0);
-				pop.remove(pop.getItemCount() - 4);
-				if (pop.getItemCount() == 3) {
-					pop.insert(none, 0);
+		if (!announceARace()) { // if there is no race to announce
+			while (pending.size() > 0) { // and there is at least one run pending
+				if (stillValid(pending.get(0))) { // and that run is still verified
+					try { // try to tweet it out
+						String id = pending.get(0);
+						String tweet = createRunTweet(id);
+						tweet(tweet);
+						
+						pending.remove(0);
+						pop.remove(pop.getItemCount() - 4);
+						if (pop.getItemCount() == 3) {
+							pop.insert(none, 0);
+						}
+						done.add(id);
+						
+						updateTrayIcon();
+						return true;
+					} catch (Exception e) {
+						e.printStackTrace();
+						return false;
+					}
+				} else { // if it was rejected, skip it and try the next one
+					pending.remove(0);
 				}
-				done.add(id);
-				
-				updateTrayIcon();
-				return true;
-			} catch (Exception e) {
-				e.printStackTrace();
-				return false;
 			}
 		}
 		return true;
+	}
+	
+	// check if the run is still in accepted state at the time of tweeting
+	public static boolean stillValid(String runId) {
+		try {
+			// call the SRC api
+			String json = apiCall(API_SRC_RUN + runId);
+			JSONObject o = new JSONObject(json);
+			JSONObject run = o.getJSONObject("data");
+			
+			return run.getJSONObject("status").getString("status").equalsIgnoreCase("verified");
+		} catch (Exception e) {
+			e.printStackTrace();
+			return false;
+		}
 	}
 	
 	// check if there are any races ongoing, if so build a tweet for it
@@ -304,9 +331,10 @@ public class SMWSpeedruns {
 			for (int i = 0; i < runs.length(); i++) {
 				JSONObject run = runs.getJSONObject(i);
 				String runId = run.getString("id");
+				String categoryId = run.getString("category");
 				
 				// add to pending queue if we haven't seen it yet
-				if (!pending.contains(runId) && !done.contains(runId)) {
+				if (!pending.contains(runId) && !done.contains(runId) && !categoryBlacklisted(categoryId)) {
 					count++;
 					
 					if (!pend) {
@@ -518,6 +546,16 @@ public class SMWSpeedruns {
 		} else {
 			return String.format("%s %s", mainTweet, link);
 		}
+	}
+	
+	// return true if the category is blacklisted
+	public static boolean categoryBlacklisted(String categoryId) {
+		for (int i = 0; i < BLACKLISTED_CATEGORIES.length; i++) {
+			if (BLACKLISTED_CATEGORIES[i].equals(categoryId)) {
+				return true;
+			}
+		}
+		return false;
 	}
 	
 	// check if the run is a personal best for player
