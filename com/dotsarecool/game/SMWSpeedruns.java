@@ -51,15 +51,13 @@ public class SMWSpeedruns {
 		API_SRC_USER = "https://www.speedrun.com/api/v1/users/",
 		API_SRC_CATEGORY = "https://www.speedrun.com/api/v1/categories/",
 		API_SRC_RUN = "https://www.speedrun.com/api/v1/runs/",
-		API_SRL_RACES = "https://api.speedrunslive.com/races",
-		API_SRL_PLAYER = "https://api.speedrunslive.com/players/";
+		API_RACETIME = "https://racetime.gg/";
 	
 	// smw category/game ids
 	public static String 
 		GAME_SMW = "pd0wq31e",
 		GAME_SMWEXT = "268n5y6p",
-		RACE_SMW = "smw",
-		RACE_SMWHACKS = "smwhacks";
+		RACE_SMW = "smw";
 	
 	// blacklisted categories
 	public static String[] BLACKLISTED_CATEGORIES = {
@@ -84,7 +82,7 @@ public class SMWSpeedruns {
 	
 	// other global containers/objects
 	public static List<String> pending, done, races;
-	public static Map<String,String> users, categories, racers;
+	public static Map<String,String> users, categories;
 	public static Twitter twitter;
 	public static Random random;
 	public static SimpleDateFormat sdf;
@@ -140,7 +138,6 @@ public class SMWSpeedruns {
 		races = new ArrayList<>();
 		users = new HashMap<>();
 		categories = new HashMap<>();
-		racers = new HashMap<>();
 		random = new Random();
 		sdf = new SimpleDateFormat("MMM dd, yyyy - HH:mm:ss");
 
@@ -165,7 +162,7 @@ public class SMWSpeedruns {
 	// everything has been initialized and we are guaranteed to actually start the program
 	public static boolean start() {
 		Util.log(false, "++-- SMW Speedruns Bot --++");
-		Util.log(false, "|| Version 1.5.1         ||");
+		Util.log(false, "|| Version 1.6.0         ||");
 		Util.log(false, "|| By @Dotsarecool       ||");
 		Util.log(false, "++-----------------------++");
 		Util.log(false, String.format("Logging to '%s'.", LOG_FILE));
@@ -278,48 +275,47 @@ public class SMWSpeedruns {
 	
 	// check if there are any races ongoing, if so build a tweet for it
 	public static boolean announceARace() {
-		return false;
-//		try {
-//			// call the SRL api for list of races
-//			String json = apiCall(API_SRL_RACES);
-//			JSONObject o = new JSONObject(json);
-//			JSONArray racelist = o.getJSONArray("races");
-//			
-//			// run through them all and look for smw or smwhacks races
-//			JSONObject smwrace = null;
-//			for (int i = 0; i < racelist.length(); i++) {
-//				String gameAbbr = racelist.getJSONObject(i).getJSONObject("game").getString("abbrev");
-//				if (gameAbbr.equals(RACE_SMW) || gameAbbr.equals(RACE_SMWHACKS)) {
-//					smwrace = racelist.getJSONObject(i);
-//				}
-//			}
-//			
-//			// didn't find any :(
-//			if (smwrace == null) {
-//				Util.log(true, "No SMW races ongoing at the moment.");
-//				return false;
-//			}
-//			
-//			// get useful data from the api call
-//			int racerCount = smwrace.getInt("numentrants");
-//			String raceStatus = smwrace.getString("statetext");
-//			String raceId = smwrace.getString("id");
-//			
-//			// only tweet it out if there are 3+ racers, it is in progress, and we haven't tweeted it already
-//			if (racerCount > 2 && raceStatus.equals("In Progress") && !races.contains(raceId)) {
-//				Util.log(true, String.format("A SMW race was found: %s", raceId));
-//				String tweet = createRaceTweet(smwrace);
-//				tweet(tweet);				
-//				races.add(raceId);
-//				return true;
-//			} else {
-//				Util.log(true, "A SMW race was found, but it wasn't tweeted out.");
-//				return false;
-//			}
-//		} catch (Exception e) {
-//			e.printStackTrace();
-//			return false;
-//		}
+		try {
+			// call the Racetime api for list of races
+			String json = apiCall(API_RACETIME);
+			JSONObject o = new JSONObject(json);
+			JSONArray racelist = o.getJSONArray("races");
+			
+			// run through them all and look for smw races
+			JSONObject smwrace = null;
+			for (int i = 0; i < racelist.length(); i++) {
+				String gameAbbr = racelist.getJSONObject(i).getJSONObject("category").getString("slug");
+				if (gameAbbr.equals(RACE_SMW)) {
+					smwrace = racelist.getJSONObject(i);
+				}
+			}
+			
+			// didn't find any :(
+			if (smwrace == null) {
+				Util.log(true, "No SMW races ongoing at the moment.");
+				return false;
+			}
+			
+			// get useful data from the api call
+			int racerCount = smwrace.getInt("entrants_count");
+			String raceStatus = smwrace.getJSONObject("status").getString("value");
+			String raceName = smwrace.getString("name");
+			
+			// only tweet it out if there are 3+ racers, it is in progress, and we haven't tweeted it already
+			if (racerCount > 2 && raceStatus.equals("in_progress") && !races.contains(raceName)) {
+				Util.log(true, String.format("A SMW race was found: %s", raceName));
+				String tweet = createRaceTweet(raceName);
+				tweet(tweet);				
+				races.add(raceName);
+				return true;
+			} else {
+				Util.log(true, "A SMW race was found, but it wasn't tweeted out.");
+				return false;
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			return false;
+		}
 	}
 	
 	// check the SRC api for any runs that were recently verified
@@ -461,14 +457,17 @@ public class SMWSpeedruns {
 		return menu;
 	}
 	
-	// build a tweet for an SRL race
-	public static String createRaceTweet(JSONObject race) throws Exception {
+	// build a tweet for a Racetime race
+	public static String createRaceTweet(String raceName) throws Exception {
+		// call the Racetime api to get more race info
+		String link = API_RACETIME + raceName;
+		String json = apiCall(link + "/data");
+		JSONObject o = new JSONObject(json);
+		
 		// get some useful info for the tweet
-		String raceId = race.getString("id");
-		String link = "http://www.speedrunslive.com/race/?id=" + raceId;
-		String [] racerNames = Util.shuffle(JSONObject.getNames(race.getJSONObject("entrants")));
-		for (int i = 0; i < racerNames.length && i < 3; i++) {
-			racerNames[i] = getSRLPlayer(racerNames[i]);
+		String [] racerNames = new String[o.getInt("entrants_count")];
+		for (int i = 0; i < racerNames.length; i++) {
+			racerNames[i] = o.getJSONArray("entrants").getJSONObject(i).getJSONObject("user").getString("name");
 		}
 		
 		// join all the names together, max of 3
@@ -482,7 +481,7 @@ public class SMWSpeedruns {
 		}
 		
 		// if its a rando race, rename the goal because rando goals are hella long
-		String goal = race.getString("goal");
+		String goal = o.getJSONObject("goal").getString("name");
 		if (goal.toLowerCase().contains("randomizer")) {
 			goal = "SMW Randomizer";
 		}
@@ -623,34 +622,6 @@ public class SMWSpeedruns {
 
 			// save this category name for if we need it again later
 			categories.put(id, name);
-			return name;
-		} catch (Exception e) {
-			e.printStackTrace();
-			return null;
-		}
-	}
-	
-	// given an SRL user id, get the user's twitter handle or user name
-	public static String getSRLPlayer(String racer) {
-		// see if we already have a copy of it, to save api calls
-		if (racers.containsKey(racer)) {
-			return racers.get(racer);
-		}
-		try {
-			// call the SRL api
-			String json = apiCall(API_SRL_PLAYER + racer);
-			JSONObject user = new JSONObject(json);
-			
-			// check if user has a twitter handle set
-			String name = user.getString("twitter");
-			if (name.length() > 0) {
-				name = "@" + name;
-			} else {
-				name = racer;
-			}
-			
-			// save this username for if we need it again later
-			racers.put(racer, name);
 			return name;
 		} catch (Exception e) {
 			e.printStackTrace();

@@ -11,7 +11,7 @@ public class Util {
 		log(true, String.format("Currently at %d API calls.", SMWSpeedruns.API_CALLS));
 		log(true, String.format("pending: %d | done: %d | races: %d || users: %d | categories: %d | racers: %d",
 				SMWSpeedruns.pending.size(), SMWSpeedruns.done.size(), SMWSpeedruns.races.size(),
-				SMWSpeedruns.users.size(), SMWSpeedruns.categories.size(), SMWSpeedruns.racers.size()));
+				SMWSpeedruns.users.size(), SMWSpeedruns.categories.size()));
 		//for (int i = 0; i < pending.size(); i++) {
 		//	log(String.format("     - %s", pending.get(i).toString()));
 		//}
