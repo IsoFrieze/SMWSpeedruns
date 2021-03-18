@@ -51,13 +51,15 @@ public class SMWSpeedruns {
 		API_SRC_USER = "https://www.speedrun.com/api/v1/users/",
 		API_SRC_CATEGORY = "https://www.speedrun.com/api/v1/categories/",
 		API_SRC_RUN = "https://www.speedrun.com/api/v1/runs/",
-		API_RACETIME = "https://racetime.gg/";
+		API_RACETIME_RACELIST = "https://racetime.gg/races/data",
+		API_RACETIME_RACE = "https://racetime.gg/";
 	
 	// smw category/game ids
 	public static String 
 		GAME_SMW = "pd0wq31e",
 		GAME_SMWEXT = "268n5y6p",
-		RACE_SMW = "smw";
+		RACE_SMW = "smw",
+		RACE_SMWRANDO = "smwrando";
 	
 	// blacklisted categories
 	public static String[] BLACKLISTED_CATEGORIES = {
@@ -80,12 +82,16 @@ public class SMWSpeedruns {
 	// max length of tweet
 	public static int MAX_TWEET_LENGTH = 280;
 	
+	// how long to cache SRC data
+	public static int MAX_SRC_DATA_CACHE = 3 * 24 * 60 * 60;
+	
 	// other global containers/objects
 	public static List<String> pending, done, races;
-	public static Map<String,String> users, categories;
+	public static Map<String,Pair<String,Long>> users, categories;
 	public static Twitter twitter;
 	public static Random random;
 	public static SimpleDateFormat sdf;
+	public static SMWSpeedruns smw = new SMWSpeedruns();
 	
 	// the system tray icon objects
 	final public static TrayIcon ti = new TrayIcon(new ImageIcon("img/icon.png").getImage());
@@ -93,6 +99,15 @@ public class SMWSpeedruns {
 	final public static MenuItem goNow = new MenuItem("Announce Next");
 	final public static MenuItem none = new MenuItem("No Runs in Queue");
 	final public static MenuItem ex = new MenuItem("Exit");
+	
+	class Pair<T1,T2> {
+		T1 a;
+		T2 b;
+		Pair(T1 a, T2 b) {
+			this.a = a;
+			this.b = b;
+		}
+	}
 	
 	public static void main(String[] args) {
 		for (String s : args) {
@@ -140,6 +155,9 @@ public class SMWSpeedruns {
 		categories = new HashMap<>();
 		random = new Random();
 		sdf = new SimpleDateFormat("MMM dd, yyyy - HH:mm:ss");
+		
+		// setup HTTP requests correctly
+		System.setProperty("http.agent", "curl/7.51.0");
 
 		// initialize twitter, populate done queues with currently verified runs
 		// if any of these fail, exit the program because it won't run properly
@@ -162,8 +180,8 @@ public class SMWSpeedruns {
 	// everything has been initialized and we are guaranteed to actually start the program
 	public static boolean start() {
 		Util.log(false, "++-- SMW Speedruns Bot --++");
-		Util.log(false, "|| Version 1.6.0         ||");
-		Util.log(false, "|| By @Dotsarecool       ||");
+		Util.log(false, "|| Version 1.7.0         ||");
+		Util.log(false, "|| By @IsoFrieze         ||");
 		Util.log(false, "++-----------------------++");
 		Util.log(false, String.format("Logging to '%s'.", LOG_FILE));
 		Util.log(false, "");
@@ -277,7 +295,7 @@ public class SMWSpeedruns {
 	public static boolean announceARace() {
 		try {
 			// call the Racetime api for list of races
-			String json = apiCall(API_RACETIME);
+			String json = apiCall(API_RACETIME_RACELIST);
 			JSONObject o = new JSONObject(json);
 			JSONArray racelist = o.getJSONArray("races");
 			
@@ -285,7 +303,7 @@ public class SMWSpeedruns {
 			JSONObject smwrace = null;
 			for (int i = 0; i < racelist.length(); i++) {
 				String gameAbbr = racelist.getJSONObject(i).getJSONObject("category").getString("slug");
-				if (gameAbbr.equals(RACE_SMW)) {
+				if (gameAbbr.equals(RACE_SMW) || gameAbbr.equals(RACE_SMWRANDO)) {
 					smwrace = racelist.getJSONObject(i);
 				}
 			}
@@ -460,7 +478,7 @@ public class SMWSpeedruns {
 	// build a tweet for a Racetime race
 	public static String createRaceTweet(String raceName) throws Exception {
 		// call the Racetime api to get more race info
-		String link = API_RACETIME + raceName;
+		String link = API_RACETIME_RACE + raceName;
 		String json = apiCall(link + "/data");
 		JSONObject o = new JSONObject(json);
 		
@@ -482,7 +500,7 @@ public class SMWSpeedruns {
 		
 		// if its a rando race, rename the goal because rando goals are hella long
 		String goal = o.getJSONObject("goal").getString("name");
-		if (goal.toLowerCase().contains("randomizer")) {
+		if (o.getJSONObject("category").getString("slug").equals(RACE_SMWRANDO)) {
 			goal = "SMW Randomizer";
 		}
 		
@@ -581,7 +599,10 @@ public class SMWSpeedruns {
 	public static String getSRCPlayer(String id) {
 		// see if we already have a copy of it, to save api calls
 		if (users.containsKey(id)) {
-			return users.get(id);
+			Pair<String,Long> value = users.get(id);
+			if (value.b + MAX_SRC_DATA_CACHE > System.currentTimeMillis() / 1000) {
+				return value.a;
+			}
 		}
 		try {
 			// call the SRC api
@@ -598,7 +619,8 @@ public class SMWSpeedruns {
 			}
 			
 			// save this username for if we need it again later
-			users.put(id, name);
+			Pair<String,Long> value = smw.new Pair<>(name, System.currentTimeMillis() / 1000);
+			users.put(id, value);
 			return name;
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -610,7 +632,10 @@ public class SMWSpeedruns {
 	public static String getSRCCategory(String id) {
 		// see if we already have a copy of it, to save api calls
 		if (categories.containsKey(id)) {
-			return categories.get(id);
+			Pair<String,Long> value = categories.get(id);
+			if (value.b + MAX_SRC_DATA_CACHE > System.currentTimeMillis() / 1000) {
+				return value.a;
+			}
 		}
 		try {
 			// call the SRC api
@@ -621,7 +646,8 @@ public class SMWSpeedruns {
 			String name = category.getString("name");
 
 			// save this category name for if we need it again later
-			categories.put(id, name);
+			Pair<String,Long> value = smw.new Pair<>(name, System.currentTimeMillis() / 1000);
+			categories.put(id, value);
 			return name;
 		} catch (Exception e) {
 			e.printStackTrace();

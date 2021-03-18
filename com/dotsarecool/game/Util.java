@@ -9,7 +9,7 @@ public class Util {
 	// wait a bit. also log some stuff
 	public static void waitTime(long t) {
 		log(true, String.format("Currently at %d API calls.", SMWSpeedruns.API_CALLS));
-		log(true, String.format("pending: %d | done: %d | races: %d || users: %d | categories: %d | racers: %d",
+		log(true, String.format("pending: %d | done: %d | races: %d || users: %d | categories: %d",
 				SMWSpeedruns.pending.size(), SMWSpeedruns.done.size(), SMWSpeedruns.races.size(),
 				SMWSpeedruns.users.size(), SMWSpeedruns.categories.size()));
 		//for (int i = 0; i < pending.size(); i++) {
@@ -118,6 +118,7 @@ public class Util {
 	//   %goal% - the goal name
 	public static String [] raceTemplates = {
 		"%racers% are currently racing %goal%!",
-		"A race of %goal% is taking place with racers %racers%!"
+		"A race of %goal% is taking place with racers %racers%!",
+		"Go watch %racers% race %goal% right now!"
 	};
 }
