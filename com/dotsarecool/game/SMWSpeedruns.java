@@ -180,7 +180,7 @@ public class SMWSpeedruns {
 	// everything has been initialized and we are guaranteed to actually start the program
 	public static boolean start() {
 		Util.log(false, "++-- SMW Speedruns Bot --++");
-		Util.log(false, "|| Version 1.7.0         ||");
+		Util.log(false, "|| Version 1.7.1         ||");
 		Util.log(false, "|| By @IsoFrieze         ||");
 		Util.log(false, "++-----------------------++");
 		Util.log(false, String.format("Logging to '%s'.", LOG_FILE));
@@ -509,10 +509,11 @@ public class SMWSpeedruns {
 			.replace("%racers%", names)
 			.replace("%goal%", goal);
 		
-		if (mainTweet.length() + link.length() + 1 > MAX_TWEET_LENGTH) {
+		String tweetLink = link + "/spectate";
+		if (mainTweet.length() + tweetLink.length() + 1 > MAX_TWEET_LENGTH) {
 			return mainTweet;
 		} else {
-			return String.format("%s %s", mainTweet, link);
+			return String.format("%s %s", mainTweet, tweetLink);
 		}
 	}
 	
